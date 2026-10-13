@@ -2,3 +2,4 @@
 # 格式：<仓库内相对路径>  ->  <CI 步骤/命令>
 # 若某测试文件确实无法在 CI 跑，写 SKIPPED: <理由>，必须可见，不许静默。
 web/tests/deviceConfigTabAtPort.test.ts  ->  SKIPPED: 上游遗留文件，web/package.json 无 test/vitest runner（本 fork 不改前端，见 docs/交接.md 已知坑）
+internal/notify/bark_code_test.go  ->  go test ./internal/notify/... (T3 Bark 验证码自动复制单测)
