@@ -1,10 +1,10 @@
 {
   "holder": "user",
-  "stage": "ready-for-review",
+  "stage": "maintenance",
   "review_level": "full",
-  "since": "2026-10-13T22:44:11+08:00",
+  "since": "2026-10-13T22:54:55+08:00",
   "task": "T1 立项收尾 + T2 方案审批（阶段①→②出口）",
-  "handoff_pending": "等用户批准 docs/方案-bark验证码自动复制.md 后进入阶段③实现；CI 首次跑绿结果见 docs/交接.md §2",
+  "handoff_pending": "项目已停止：用户决定继续使用官方镜像，不实现验证码自动复制。无需接手动作。",
   "start_here": [
     "读 dev-workspace/docs/NAS操作指南.md，再读本项目 docs/交接.md（顺序不能反）",
     "读 docs/任务书.md（T1/T2 判据）与 docs/方案-bark验证码自动复制.md",
@@ -34,5 +34,5 @@
     "★ 不许在方案获批前动 internal/ 下的业务代码"
   ],
   "quality_warning": "最容易犯的错：只在源码树里跑测试就宣布通过。判据必须打在已部署容器上（docker logs + Bark 服务端日志），源码树绿 ≠ 线上绿。",
-  "note": "线上仍在跑官方镜像，本次立项对生产零影响；回滚成本 = 一行 IMAGE_TAG。"
+  "note": "2026-10-13 用户决定停止。生产零影响（一直跑官方镜像）；fork 与分支 nas 作存档保留，workflow 已禁用。要复活：启用 workflow + 按 docs/方案-bark验证码自动复制.md S2 起做。"
 }
