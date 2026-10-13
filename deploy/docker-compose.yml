@@ -1,0 +1,21 @@
+# 部署定义（源码仓库内的权威版本）
+# 部署目录 /vol1/1000/Docker/openvohive/docker-compose.yml 是薄 wrapper（include 本文件，绝对路径）
+# 用法：deploy/deploy.sh 读同目录 .env 的 IMAGE_TAG
+services:
+  vohive:
+    image: ghcr.io/metack567-stack/openvohive:${IMAGE_TAG:?IMAGE_TAG 必须设置}
+    container_name: vohive
+    hostname: vohive
+    restart: unless-stopped
+    # 模块访问需要：privileged + /dev + /sys（官方要求；缺 /sys 会报「未找到匹配 IMEI 的设备」）
+    privileged: true
+    volumes:
+      - /dev:/dev
+      - /sys:/sys
+      - /vol1/1000/Docker/openvohive/data:/app/data   # 配置/短信库/日志持久化（容器无状态）
+    ports:
+      - "7575:7575"
+    environment:
+      TZ: Asia/Shanghai
+      PROXY_WEB_USERNAME: ${PROXY_WEB_USERNAME:-admin}
+      PROXY_WEB_PASSWORD: ${PROXY_WEB_PASSWORD:?必须在 .env 里设置}

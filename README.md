@@ -1,3 +1,9 @@
+> **[NAS 自建版]** 本仓库是 `dannyge/openvohive` 的 fork，发行分支 **`nas`**（基线 `a0e2d642`，即生产镜像的构建源）。
+> 部署目录：`/vol1/1000/Docker/openvohive/`；构建：`Dockerfile.nas`（自包含多阶段）；文档：`docs/任务书.md`、`docs/方案-*.md`、`docs/交接.md`。
+> 上游代码与许可（PolyForm Noncommercial 1.0.0）保持不变。
+
+---
+
 # OpenVoHive
 
 > **Fork 声明**：本仓库 fork 自 [iniwex5/vohive](https://github.com/iniwex5/vohive), 并进行深度改造和维护。

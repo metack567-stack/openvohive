@@ -1,0 +1,33 @@
+name: CI
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: ① 凭据泄漏检查
+        run: bash scripts/check-secrets.sh
+
+      - name: ② 构建镜像（自包含多阶段：前端 Bun → 后端 Go → Alpine）
+        run: docker build -f Dockerfile.nas --build-arg VOHIVE_VERSION="$(cat VERSION)" -t openvohive-nas:ci .
+
+      - name: ③ Go 测试 + 双向断言
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: bash scripts/run-tests.sh
+
+      - name: ④ 前端静态检查（typecheck + lint）
+        uses: oven-sh/setup-bun@v2
+      - run: |
+          cd web && (bun install --frozen-lockfile || bun install)
+          bun run typecheck
+
+      - name: ⑤ 黑盒冒烟（起镜像 → 登录 → 版本串）
+        run: bash scripts/smoke-image.sh openvohive-nas:ci "$(cat VERSION)"

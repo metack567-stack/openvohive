@@ -1,0 +1,4 @@
+# 测试文件 → CI 覆盖映射（双向断言的依据；run-tests.sh 会逐行核对）
+# 格式：<仓库内相对路径>  ->  <CI 步骤/命令>
+# 若某测试文件确实无法在 CI 跑，写 SKIPPED: <理由>，必须可见，不许静默。
+web/tests/deviceConfigTabAtPort.test.ts  ->  SKIPPED: 上游遗留文件，web/package.json 无 test/vitest runner（本 fork 不改前端，见 docs/交接.md 已知坑）

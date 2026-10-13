@@ -1,0 +1,43 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: ⓿ tag 必须等于 v<VERSION>（否则拒绝发布）
+        run: |
+          v="$(cat VERSION)"
+          [ "v$v" = "${GITHUB_REF_NAME}" ] || { echo "❌ tag ${GITHUB_REF_NAME} 与 VERSION=v$v 不一致"; exit 1; }
+          echo "✅ tag 与 VERSION 一致: v$v"
+
+      - name: ① 凭据泄漏检查
+        run: bash scripts/check-secrets.sh
+
+      - name: ② 跑全部测试（发布门）
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: bash scripts/run-tests.sh
+
+      - name: ③ 构建待发布镜像
+        run: docker build -f Dockerfile.nas --build-arg VOHIVE_VERSION="$(cat VERSION)" -t "$IMAGE" .
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+
+      - name: ④ 在待发布镜像上黑盒冒烟（推之前必须过）
+        run: bash scripts/smoke-image.sh "ghcr.io/${{ github.repository }}:${{ github.ref_name }}" "$(cat VERSION)"
+
+      - name: ⑤ 推 registry（推出去的和测过的是同一个 digest）
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker push "ghcr.io/${{ github.repository }}:${{ github.ref_name }}"
+          docker push "ghcr.io/${{ github.repository }}:latest"
