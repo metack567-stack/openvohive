@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # 凭据泄漏检查：只扫纳入版本控制的文件
-# 注意：模式用字符串拼接构造，避免扫描器匹配到自身的字面量（自指陷阱）
+# 注意 1：模式用字符串拼接构造，避免扫描器匹配到自身字面量（自指陷阱）
+# 注意 2：模式必须用 -e 传给 git grep —— 否则以 '-' 开头的模式会被当成选项，
+#         检查会“静默失效”（曾经的 bug：私钥模式从未真正生效）
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -13,9 +15,23 @@ PATS=(
   "bark[_-]?device[_-]?key[\"'\"'= :]+[A-Za-z0-9]{16,}"
   "\"device_key\"[[:space:]]*:[[:space:]]*\"[A-Za-z0-9]{16,}\""
 )
+
+# ── 造反例：先证明扫描器真能抓到东西（否则“通过”等于没检查）──
+PROBE="$(mktemp)"
+printf '%s\n' "gh""p_$(printf 'A%.0s' $(seq 1 40))" > "$PROBE"
+if ! grep -qE -e "${PATS[0]}" "$PROBE"; then
+  echo "❌ 造反例失败：扫描器抓不到人造 token，本次“通过”不可信"; rm -f "$PROBE"; exit 1
+fi
+printf '%s\n' "-----BEGIN RSA PRIVATE KEY-----" > "$PROBE"
+if ! grep -qE -e "${PATS[4]}" "$PROBE"; then
+  echo "❌ 造反例失败：私钥模式失效"; rm -f "$PROBE"; exit 1
+fi
+rm -f "$PROBE"
+echo "   ✅ 造反例通过（扫描器确实会红）"
+
 fail=0
 for p in "${PATS[@]}"; do
-  hits="$(git grep -InE "$p" -- . ':(exclude)scripts/check-secrets.sh' || true)"
+  hits="$(git grep -InE -e "$p" -- . ':(exclude)scripts/check-secrets.sh' || true)"
   hits="$(printf '%s\n' "$hits" | grep -v -e 'REDACTED' -e 'example' -e 'your' || true)"
   if [ -n "${hits//[$'\n']/}" ]; then
     echo "❌ 疑似凭据（模式片段: ${p:0:10}…）"
