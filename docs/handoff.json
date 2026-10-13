@@ -1,38 +1,41 @@
 {
-  "holder": "user",
-  "stage": "maintenance",
+  "holder": "doubao",
+  "stage": "ready-for-execution",
   "review_level": "full",
-  "since": "2026-10-13T22:54:55+08:00",
-  "task": "T1 立项收尾 + T2 方案审批（阶段①→②出口）",
-  "handoff_pending": "项目已停止：用户决定继续使用官方镜像，不实现验证码自动复制。无需接手动作。",
+  "since": "2026-10-13T23:33:16+08:00",
+  "task": "T3 · 实现 Bark 验证码自动复制（分支 nas）",
+  "handoff_pending": "等豆包实现 + 发版 v0.1.0 + 部署切换；部署需用户放行（会重启容器）",
   "start_here": [
-    "读 dev-workspace/docs/NAS操作指南.md，再读本项目 docs/交接.md（顺序不能反）",
-    "读 docs/任务书.md（T1/T2 判据）与 docs/方案-bark验证码自动复制.md",
-    "批准或否方案：回复「批准 T2 方案」或指出要改的点"
+    "读 dev-workspace/docs/NAS操作指南.md → 再读本项目 docs/交接.md（顺序不能反）",
+    "读 docs/任务书.md 的 T2（需求与判据）与 T3（实现工单，精确到文件与行）",
+    "查 ORIGIN/分支：origin=metack567-stack/openvohive，工作分支 nas，基线 a0e2d642"
   ],
   "self_check": [
-    "cd /vol1/1000/Docker/dev-workspace/projects/openvohive && git log -1 --format=%h_%s  # 不是立项提交 = 本工单尚未开工",
-    "sg docker -c 'docker images --format {{.Repository}}:{{.Tag}}' | grep -c metack567-stack/openvohive  # 输出 0 = 自建镜像尚未构建（阶段③未开工）"
+    "cd /vol1/1000/Docker/dev-workspace/projects/openvohive && grep -c autoCopy internal/notify/bark.go   # 输出 0 = 补丁尚未落地（本工单未开工）",
+    "sg docker -c 'docker images --format {{.Repository}}:{{.Tag}}' | grep -c metack567-stack/openvohive   # 输出 0 = 自建镜像尚未构建"
   ],
   "instructions": [
-    "1) 阶段③实现：补丁 + 单测（先写红测试再实现，见 docs/交接.md §7）",
-    "2) 阶段④发版：VERSION → tag v0.1.0 → 等 release 绿并推 GHCR",
-    "3) 阶段⑤部署：部署目录薄 wrapper + .env 换 IMAGE_TAG → bash deploy/deploy.sh",
-    "4) 阶段⑥验收由守门人独立跑探针（任务书 T2 A1–A5）"
+    "1) 按 T3 改 bark.go / 新建 bark_code.go / config.go 加 auto_copy 开关（默认 false）/ 加 5 个单测",
+    "2) 本地跑 docker run … go test ./internal/notify/... 全绿后 push 到 nas（CI 会跑 5 步，必须全绿）",
+    "3) VERSION=0.1.0 打 tag v0.1.0 → release 绿并推 ghcr.io/metack567-stack/openvohive:v0.1.0",
+    "4) 部署前向用户要放行（重启容器 → 短信中断约 1 分钟），然后 bash deploy/deploy.sh",
+    "5) 五栏回填 + 【没做的】，然后交回守门人复核（holder 改回 hermes）"
   ],
   "acceptance": [
-    "A1 go test ./internal/notify/... 全绿且 grep -c autoCopy internal/notify/bark.go ≥ 1",
-    "A2 真实短信的 Bark 服务端日志出现 copy=<验证码> 与 autoCopy=1",
-    "A3 无验证码短信的推送体不含 autoCopy",
-    "A4 auto_copy=false 时字段消失（造反例）",
-    "A5 换 IMAGE_TAG 可分钟级回滚官方镜像"
+    "A1 grep -c autoCopy internal/notify/bark.go ≥ 1 且 go test ./internal/notify/... 全绿",
+    "A2 CI run conclusion=success（API 实查 + run 链接）",
+    "A3 真实短信：Bark 服务端 POST /push 出现 copy=<验证码> 与 autoCopy=1",
+    "A4 无验证码短信的推送体不含 autoCopy（负例）",
+    "A5 auto_copy=false 时字段消失（造反例）",
+    "A6 回滚：.env 指回官方镜像 + docker compose up -d → 版本串回旧值，短信链路照常"
   ],
   "boundaries": [
-    "★ 不许让 vohive 与 freepbx 同时运行（串口独占）",
+    "★ 不许让 vohive 与 freepbx 同时运行（串口独占 /dev/ttyUSB2）",
+    "★ 部署（重启容器）前必须先拿到用户放行",
     "★ 不许容器挂源码 / 不许 docker cp 热改容器",
-    "★ 不许把 Bark device_key 或 Web 密码写进仓库或对话",
-    "★ 不许在方案获批前动 internal/ 下的业务代码"
+    "★ 不许把 Bark device_key、Web 密码写进仓库或对话",
+    "★ 不许改前端、不许动与本功能无关的 internal/ 文件（from main 线整段搬运代码 = 会丢掉生产线修复）"
   ],
-  "quality_warning": "最容易犯的错：只在源码树里跑测试就宣布通过。判据必须打在已部署容器上（docker logs + Bark 服务端日志），源码树绿 ≠ 线上绿。",
-  "note": "2026-10-13 用户决定停止。生产零影响（一直跑官方镜像）；fork 与分支 nas 作存档保留，workflow 已禁用。要复活：启用 workflow + 按 docs/方案-bark验证码自动复制.md S2 起做。"
+  "quality_warning": "最容易犯的两个错：① 只在源码树跑测试就说通过 —— 判据必须打在已部署容器上（docker logs + Bark 服务端日志）；② 把 main 线的整段代码搬过来 —— 必须只取 copy/autoCopy 两个字段与正则思路。另：viper 未注册默认值的键读不到 env，auto_copy 要 SetDefault。",
+  "note": "阶段①立项已完成且 CI 绿（run #7）；线上仍跑官方镜像，本单未部署前对生产零影响；回滚成本 = 一行 IMAGE_TAG。"
 }
