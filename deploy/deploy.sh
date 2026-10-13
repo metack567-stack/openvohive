@@ -28,15 +28,10 @@ NEW_ID="$(sg docker -c "docker inspect -f '{{.Id}}' $CT")"
 [ "$OLD_ID" != "$NEW_ID" ] || { echo "❌ 容器 ID 未变化，重建没生效"; exit 1; }
 echo "   ${OLD_ID:0:12} → ${NEW_ID:0:12} ✅"
 
-echo "④ 等就绪（最多 90s，登录成功为准）"
-TOK=""; USER="${PROXY_WEB_USERNAME:-admin}"; PASS="${PROXY_WEB_PASSWORD:?}"
-for _ in $(seq 1 45); do
-  TOK="$(curl -s -m 3 -X POST http://127.0.0.1:7575/api/auth/login -H 'Content-Type: application/json' \
-        -d "{\"username\":\"$USER\",\"password\":\"$PASS\"}" \
-        | python3 -c 'import sys,json;print(json.load(sys.stdin).get("token",""))' 2>/dev/null || true)"
-  [ -n "$TOK" ] && break; sleep 2
-done
-[ -n "$TOK" ] || { echo "❌ 未就绪"; sg docker -c "docker logs --tail 30 $CT"; exit 1; }
+echo "④ 等就绪并登录（限流安全：见 scripts/wait-ready.sh 注释）"
+REPO_DIR="${REPO_DIR:-/vol1/1000/Docker/dev-workspace/projects/openvohive}"
+TOK="$(bash "$REPO_DIR/scripts/wait-ready.sh" 7575 "${PROXY_WEB_USERNAME:-admin}" "${PROXY_WEB_PASSWORD:?}")" \
+  || { echo "❌ 未就绪或登录失败"; sg docker -c "docker logs --tail 30 $CT"; exit 1; }
 echo "   ✅ 可登录"
 
 echo "⑤ 核对运行版本（必须是 $WANT_VER）"
