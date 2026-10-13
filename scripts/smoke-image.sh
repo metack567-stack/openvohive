@@ -1,34 +1,25 @@
 #!/usr/bin/env bash
-# 黑盒冒烟：起镜像 → 等就绪（走中间件感知的就绪入口）→ 核对镜像内版本串 → 清理
+# 黑盒冒烟：起镜像 → 等就绪 → 核对镜像内版本串 → 清理
 # 用法: smoke-image.sh <image> <expected_version>
+#
+# 注意（实测坑）：配置优先级是 **环境变量 > config.yaml**
+#   —— viper 的 AutomaticEnv 会覆盖配置文件的值（web.username/password 就是如此）。
+#   所以这里用 -e PROXY_WEB_* 传凭据，而不挂 config.yaml；
+#   另外不挂载就没有 root 写的日志要清（避免 Permission denied 噪声）。
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 IMG="${1:-openvohive-nas:ci}"
 WANT="${2:-$(cat VERSION)}"
 NAME="ov-smoke-$$"
-TMP="$(mktemp -d)"
 USER=smoke; PASS="smoke-$$"
 
-cleanup() {
-  docker rm -f "$NAME" >/dev/null 2>&1 || true
-  # 容器内的进程以 root 写日志，宿主直接 rm 会 Permission denied → 用容器清
-  docker run --rm -v "$TMP:/x" alpine:latest sh -c 'rm -rf /x/* /x/.[!.]* 2>/dev/null' >/dev/null 2>&1 || true
-  rm -rf "$TMP" 2>/dev/null || true
-}
+cleanup() { docker rm -f "$NAME" >/dev/null 2>&1 || true; }
 trap cleanup EXIT
 
-cat > "$TMP/config.yaml" <<EOF
-server:
-  port: 7575
-web:
-  username: $USER
-  password: $PASS
-bark:
-  enabled: false
-EOF
-
-docker run -d --name "$NAME" -p 127.0.0.1::7575 -v "$TMP:/app/data" "$IMG" >/dev/null
+docker run -d --name "$NAME" -p 127.0.0.1::7575 \
+  -e PROXY_WEB_USERNAME="$USER" -e PROXY_WEB_PASSWORD="$PASS" \
+  "$IMG" >/dev/null
 PORT="$(docker port "$NAME" 7575/tcp | head -1 | awk -F: '{print $NF}')"
 echo "   容器 $NAME 端口 $PORT，等待就绪 …"
 
