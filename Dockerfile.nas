@@ -33,5 +33,6 @@ COPY --from=backend /out/server /app/server
 COPY config/config.example.yaml /app/config/config.yaml
 COPY deploy/docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/server /app/docker-entrypoint.sh
+RUN mkdir -p /app/data
 # 数据/配置/日志约定（与官方镜像一致）：挂 ./data → /app/data
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
