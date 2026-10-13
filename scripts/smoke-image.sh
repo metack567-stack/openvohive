@@ -17,10 +17,19 @@ USER=smoke; PASS="smoke-$$"
 cleanup() { docker rm -f "$NAME" >/dev/null 2>&1 || true; }
 trap cleanup EXIT
 
-docker run -d --name "$NAME" -p 127.0.0.1::7575 \
+# 端口：交给 docker 随机分配宿主端口（`-p 容器端口` 形式）。
+# 不要用 `-p 127.0.0.1::7575`：在 GitHub runner 上实测会得到
+# "No public port '7575/tcp' published"。
+docker run -d --name "$NAME" -p 7575 \
   -e PROXY_WEB_USERNAME="$USER" -e PROXY_WEB_PASSWORD="$PASS" \
   "$IMG" >/dev/null
-PORT="$(docker port "$NAME" 7575/tcp | head -1 | awk -F: '{print $NF}')"
+PORT=""
+for _ in $(seq 1 15); do
+  PORT="$(docker port "$NAME" 7575/tcp 2>/dev/null | head -1 | awk -F: '{print $NF}')"
+  [ -n "$PORT" ] && break
+  sleep 1
+done
+[ -n "$PORT" ] || { echo "❌ 冒烟失败：端口未发布（容器状态 $(docker inspect -f '{{.State.Status}}' "$NAME")）"; docker logs "$NAME" 2>&1 | tail -15; exit 1; }
 echo "   容器 $NAME 端口 $PORT，等待就绪 …"
 
 TOK="$(bash scripts/wait-ready.sh "$PORT" "$USER" "$PASS")" || {
