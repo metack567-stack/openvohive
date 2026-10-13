@@ -21,22 +21,26 @@ jobs:
       - name: ① 凭据泄漏检查
         run: bash scripts/check-secrets.sh
 
-      - name: ② 跑全部测试（发布门）
+      - name: ② 前端构建（go:embed all:dist 需要 web/dist）
+        uses: oven-sh/setup-bun@v2
+      - run: cd web && (bun install --frozen-lockfile || bun install) && bun run build
+
+      - name: ③ 跑全部测试（发布门）
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
           cache: true
       - run: bash scripts/run-tests.sh
 
-      - name: ③ 构建待发布镜像
+      - name: ④ 构建待发布镜像
         run: docker build -f Dockerfile.nas --build-arg VOHIVE_VERSION="$(cat VERSION)" -t "$IMAGE" .
         env:
           IMAGE: ghcr.io/${{ github.repository }}:${{ github.ref_name }}
 
-      - name: ④ 在待发布镜像上黑盒冒烟（推之前必须过）
+      - name: ⑤ 在待发布镜像上黑盒冒烟（推之前必须过）
         run: bash scripts/smoke-image.sh "ghcr.io/${{ github.repository }}:${{ github.ref_name }}" "$(cat VERSION)"
 
-      - name: ⑤ 推 registry（推出去的和测过的是同一个 digest）
+      - name: ⑥ 推 registry（推出去的和测过的是同一个 digest）
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
           docker push "ghcr.io/${{ github.repository }}:${{ github.ref_name }}"

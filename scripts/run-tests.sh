@@ -5,6 +5,16 @@ cd "$(dirname "$0")/.."
 GO="${GO:-go}"
 command -v "$GO" >/dev/null 2>&1 || { echo "❌ 找不到 $GO（CI 里由 setup-go 提供）"; exit 1; }
 
+# go:embed all:dist —— 仓库不跟踪 web/dist，检出后必须先构建前端，否则 web 包编译失败
+if [ ! -d web/dist ]; then
+  if command -v bun >/dev/null 2>&1; then
+    echo "── 构建前端（web/dist 缺失，go:embed 需要）──"
+    ( cd web && (bun install --frozen-lockfile || bun install) && bun run build )
+  else
+    echo "❌ web/dist 缺失，且本机没有 bun。先跑：cd web && bun install && bun run build"; exit 1
+  fi
+fi
+
 echo "── go test ./... ──"
 "$GO" test ./...
 echo "   ✅ 全部 Go 测试通过"
