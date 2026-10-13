@@ -20,6 +20,8 @@ type barkPushPayload struct {
 	DeviceKey string `json:"device_key"`
 	Title     string `json:"title,omitempty"`
 	Body      string `json:"body"`
+	Copy      string `json:"copy,omitempty"`
+	AutoCopy  string `json:"autoCopy,omitempty"` // 值为 "1" 时自动复制 copy 字段到剪贴板
 	Group     string `json:"group,omitempty"`
 	Sound     string `json:"sound,omitempty"`
 }
@@ -32,6 +34,7 @@ type BarkChannel struct {
 	title     string
 	group     string
 	sound     string
+	autoCopy  bool
 	client    *http.Client
 }
 
@@ -63,6 +66,7 @@ func NewBarkChannel(cfg config.BarkConfig) (*BarkChannel, error) {
 		title:     title,
 		group:     strings.TrimSpace(cfg.Group),
 		sound:     strings.TrimSpace(cfg.Sound),
+		autoCopy:  cfg.AutoCopy,
 		client: &http.Client{
 			Timeout: time.Duration(timeoutMs) * time.Millisecond,
 		},
@@ -85,13 +89,7 @@ func (c *BarkChannel) SendWithContext(ctx NotificationContext) error {
 		title = fmt.Sprintf("%s %s", c.title, label)
 	}
 
-	payload := barkPushPayload{
-		DeviceKey: c.deviceKey,
-		Title:     title,
-		Body:      ctx.Text,
-		Group:     c.group,
-		Sound:     c.sound,
-	}
+	payload := c.buildPayload(ctx, title)
 
 	body, err := json.Marshal(payload)
 	if err != nil {
@@ -164,6 +162,26 @@ func (c *BarkChannel) SendWithContext(ctx NotificationContext) error {
 	}
 
 	return lastErr
+}
+
+// buildPayload 构建 Bark 推送 payload。
+// 仅当开关 auto_copy 打开且从短信正文识别到验证码时，才填 Copy/AutoCopy；
+// 否则两字段留空，靠 omitempty 从 JSON 中消失（避免覆盖剪贴板）。
+func (c *BarkChannel) buildPayload(ctx NotificationContext, title string) barkPushPayload {
+	payload := barkPushPayload{
+		DeviceKey: c.deviceKey,
+		Title:     title,
+		Body:      ctx.Text,
+		Group:     c.group,
+		Sound:     c.sound,
+	}
+	if c.autoCopy {
+		if code := extractVerificationCode(extractSMSContent(ctx.Text)); code != "" {
+			payload.Copy = code
+			payload.AutoCopy = "1"
+		}
+	}
+	return payload
 }
 
 // isRetryableBarkStatus 判断 bark 返回的 HTTP 状态码是否值得重试

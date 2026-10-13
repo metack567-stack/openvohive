@@ -186,6 +186,7 @@ type BarkConfig struct {
 	Group     string `mapstructure:"group"`       // 推送分组，可选
 	Sound     string `mapstructure:"sound"`       // 提示音，可选
 	TimeoutMs int    `mapstructure:"timeout_ms"`  // 请求超时毫秒，默认 5000
+	AutoCopy  bool   `mapstructure:"auto_copy"`   // 自动复制验证码到剪贴板，默认 false
 }
 
 func Load(path string) (*Config, error) {
@@ -210,6 +211,7 @@ func Load(path string) (*Config, error) {
 	viper.SetDefault("bark.enabled", false)
 	viper.SetDefault("bark.server_url", "https://api.day.app")
 	viper.SetDefault("bark.timeout_ms", 5000)
+	viper.SetDefault("bark.auto_copy", false)
 	viper.SetDefault("web.username", "admin")
 	viper.SetDefault("web.password", "admin")
 
