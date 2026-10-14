@@ -1,10 +1,10 @@
 {
-  "holder": "doubao",
-  "stage": "ready-for-execution",
+  "holder": "hermes",
+  "stage": "done-implemented-deployed",
   "review_level": "full",
   "since": "2026-10-13T23:33:16+08:00",
   "task": "T3 · 实现 Bark 验证码自动复制（分支 nas）",
-  "handoff_pending": "等豆包实现 + 发版 v0.1.0 + 部署切换；部署需用户放行（会重启容器）",
+  "handoff_pending": "豆包已完成 T3 实现、发版（本地镜像 v0.1.0）并部署到生产容器；CI 绿（run 38439175604）；Release ⑤冒烟已过、⑥推 GHCR 因仓库级权限失败（待 Hermes 复核处理）。请 Hermes 独立复核：A1-A6 判据（A3/A4 需真实短信推送到 Bark 服务端验证）。",
   "start_here": [
     "读 dev-workspace/docs/NAS操作指南.md → 再读本项目 docs/交接.md（顺序不能反）",
     "读 docs/任务书.md 的 T2（需求与判据）与 T3（实现工单，精确到文件与行）",
