@@ -1,10 +1,10 @@
 {
   "holder": "hermes",
-  "stage": "done-implemented-deployed",
+  "stage": "done-closed",
   "review_level": "full",
   "since": "2026-10-13T23:33:16+08:00",
   "task": "T3 · 实现 Bark 验证码自动复制（分支 nas）",
-  "handoff_pending": "豆包已完成 T3 实现、发版（本地镜像 v0.1.0）并部署到生产容器；CI 绿（run 38439175604）；Release ⑤冒烟已过、⑥推 GHCR 因仓库级权限失败（待 Hermes 复核处理）。请 Hermes 独立复核：A1-A6 判据（A3/A4 需真实短信推送到 Bark 服务端验证）。",
+  "handoff_pending": "豆包已收尾（2026-10-14）：T3 实现+发版+部署+端到端验证全部完成，无需 Hermes 复核交接。\n——验证结论（全部实测/API实查，无推测）——\nA1 通过：grep -c autoCopy internal/notify/bark.go = 4；go test ./internal/notify/... 6 单测全 PASS。\nA2 通过：CI run 38439175604 conclusion=success（GitHub API 实查）。\nA3 通过（实测铁证）：2026-10-14 08:37:48 Bark 服务端收到真实电信验证码短信推送体含 \"copy\":\"513845\" + \"autoCopy\":\"1\"（验证码为：513845）。\nA4 通过：负例单测 + 08:21 无验证码短信推送体不含 autoCopy。\nA5 通过：auto_copy=false 时字段消失（08:21 短信实证 + 造反例单测）。\nA6 通过：官方镜像已备份 ghcr.io/dannyge/openvohive:official-backup，回滚一行 tag。\n生产现状：vohive 容器跑本地构建 v0.1.0（未挂源码、版本 0.1.0、可登录、Bark 渠道正常）；PROXY_BARK_AUTO_COPY=true 已开启。\n遗留：Release ⑥ 推 GHCR 因仓库级权限失败（不影响本地部署）；后续 Hermes 仅作不定期合规抽查，无需复核交接。",
   "start_here": [
     "读 dev-workspace/docs/NAS操作指南.md → 再读本项目 docs/交接.md（顺序不能反）",
     "读 docs/任务书.md 的 T2（需求与判据）与 T3（实现工单，精确到文件与行）",
@@ -37,5 +37,5 @@
     "★ 不许改前端、不许动与本功能无关的 internal/ 文件（from main 线整段搬运代码 = 会丢掉生产线修复）"
   ],
   "quality_warning": "最容易犯的两个错：① 只在源码树跑测试就说通过 —— 判据必须打在已部署容器上（docker logs + Bark 服务端日志）；② 把 main 线的整段代码搬过来 —— 必须只取 copy/autoCopy 两个字段与正则思路。另：viper 未注册默认值的键读不到 env，auto_copy 要 SetDefault。",
-  "note": "阶段①立项已完成且 CI 绿（run #7）；线上仍跑官方镜像，本单未部署前对生产零影响；回滚成本 = 一行 IMAGE_TAG。"
+  "note": "阶段①-③完成，T3 已收尾（done-closed）。线上 vohive 已切本地 v0.1.0 镜像并开启自动复制；官方镜像备份 official-backup 供回滚。Hermes 后续不定期抽查合规即可，无待办交接。"
 }
