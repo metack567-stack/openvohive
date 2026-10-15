@@ -2,6 +2,15 @@ name: Release
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '要发布的 tag（形如 v0.1.0；仅手动触发时用）'
+        required: true
+
+env:
+  TAG: ${{ github.event.inputs.tag || github.ref_name }}
+  IMAGE: ghcr.io/${{ github.repository }}:${{ github.event.inputs.tag || github.ref_name }}
 
 jobs:
   release:
@@ -15,7 +24,7 @@ jobs:
       - name: ⓿ tag 必须等于 v<VERSION>（否则拒绝发布）
         run: |
           v="$(cat VERSION)"
-          [ "v$v" = "${GITHUB_REF_NAME}" ] || { echo "❌ tag ${GITHUB_REF_NAME} 与 VERSION=v$v 不一致"; exit 1; }
+          [ "v$v" = "${TAG}" ] || { echo "❌ tag ${TAG} 与 VERSION=v$v 不一致"; exit 1; }
           echo "✅ tag 与 VERSION 一致: v$v"
 
       - name: ① 凭据泄漏检查
@@ -34,14 +43,40 @@ jobs:
 
       - name: ④ 构建待发布镜像
         run: docker build -f Dockerfile.nas --build-arg VOHIVE_VERSION="$(cat VERSION)" -t "$IMAGE" .
-        env:
-          IMAGE: ghcr.io/${{ github.repository }}:${{ github.ref_name }}
 
       - name: ⑤ 在待发布镜像上黑盒冒烟（推之前必须过）
-        run: bash scripts/smoke-image.sh "ghcr.io/${{ github.repository }}:${{ github.ref_name }}" "$(cat VERSION)"
+        run: bash scripts/smoke-image.sh "$IMAGE" "$(cat VERSION)"
 
-      - name: ⑥ 推 registry（推出去的和测过的是同一个 digest）
+      - name: ⑥a 登录 GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: ⑥b 推送镜像（推出去的和测过的是同一个 digest；失败输出到 summary）
+        id: push
         run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-          docker push "ghcr.io/${{ github.repository }}:${{ github.ref_name }}"
-          docker push "ghcr.io/${{ github.repository }}:latest"
+          set -euo pipefail
+          IMG="ghcr.io/${{ github.repository }}"
+          PUSH_LOG=$(mktemp)
+          for tag in "${TAG}" latest; do
+            if docker push "$IMG:$tag" 2>&1 | tee -a "$PUSH_LOG"; then
+              echo "✅ pushed $IMG:$tag"
+            else
+              echo "::error::docker push $IMG:$tag 失败，日志如下："
+              cat "$PUSH_LOG" >> "$GITHUB_STEP_SUMMARY"
+              exit 1
+            fi
+          done
+          DIGEST=$(docker inspect --format '{{index .RepoDigests 0}}' "$IMG:${TAG}" 2>/dev/null || echo "")
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+          echo "image=$IMG:$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: ⑦ 发布汇总
+        run: |
+          {
+            echo "## 已发布"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| 镜像 | \`$IMAGE\` |"
+            echo "| commit | \`${GITHUB_SHA::7}\` |"
+            echo "| digest | \`${{ steps.push.outputs.digest }}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
