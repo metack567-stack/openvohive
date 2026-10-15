@@ -48,7 +48,8 @@ jobs:
         run: bash scripts/smoke-image.sh "$IMAGE" "$(cat VERSION)"
 
       - name: ⑥a 登录 GHCR
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+        # fork 仓库 GITHUB_TOKEN 无 packages:write（已实测 run#2/#4 推 ghcr 被拒），改用 GHCR_PAT
+        run: echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
       - name: ⑥b 推送镜像（推出去的和测过的是同一个 digest；失败输出到 summary）
         id: push
